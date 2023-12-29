@@ -94,7 +94,7 @@ void handleMotorControl() {
   html += "html, body { height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; }";
   html += "button { padding: 15px 30px; font-size: 18px; margin: 10px; }";
   html += ".button-container { display: flex; flex-direction: row; align-items: center; }";
-  html += ".container { margin-bottom: 20px; }"; // Adding margin between divs
+  html += ".container { margin-bottom: 20px; display: flex; flex-direction: column; justify-content: center; }";
   html += "</style>";
   html += "</head><body>";
   html += "<div class='container'>";
@@ -103,21 +103,21 @@ void handleMotorControl() {
   html += "<button onclick=\"sendMotorTarget(-1)\">Stop</button>";
   html += "<button onclick=\"sendMotorDirection(1)\">Right</button>";
   html += "</div>";
-  html += "</div>";
-  html += "<div class='container'>";
   html += "<div class='button-container'>";
   html += "<button onclick=\"sendMotorTarget(0)\">0.0%</button>";
   html += "<button onclick=\"sendMotorTarget(5)\">12.5%</button>";
   html += "<button onclick=\"sendMotorTarget(10)\">25.0%</button>";
+  html += "<div class='button-container'>";
+  html += "</div>";
   html += "<button onclick=\"sendMotorTarget(15)\">37.7%</button>";
   html += "<button onclick=\"sendMotorTarget(20)\">50.0%</button>";
   html += "<button onclick=\"sendMotorTarget(25)\">62.5%</button>";
+  html += "<div class='button-container'>";
+  html += "</div>";
   html += "<button onclick=\"sendMotorTarget(30)\">75.0%</button>";
   html += "<button onclick=\"sendMotorTarget(35)\">87.5%</button>";
   html += "<button onclick=\"sendMotorTarget(40)\">100.0%</button>";
   html += "</div>";
-  html += "</div>";
-  html += "<div class='container'>";
   html += "<div class='button-container'>";
   html += "<input type='text' id='tempInput' placeholder='Enter temperature'>";
   html += "<button onclick=\"sendTemperatureTarget()\">Set Target Temperature</button>";
