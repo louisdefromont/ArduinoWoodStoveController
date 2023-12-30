@@ -98,7 +98,7 @@ void handleMotorControl() {
   html += "</head><body>";
   html += "<div class='container'>";
   html += "<div class='button-container'>";
-  html += "<p><span id='temperature' style='font-size: 35vw;font-family: sans-seriff;'>" + String(temperature) + "</span></p>";
+  html += "<p><span id='temperature' style='font-size: 10vw;font-family: sans-seriff;'>" + String(temperature) + "</span></p>";
   html += "</div>";
   html += "<div class='button-container'>";
   html += "<button onclick=\"sendMotorDirection(-1)\">Left</button>";
@@ -109,13 +109,13 @@ void handleMotorControl() {
   html += "<button onclick=\"sendMotorTarget(0)\">0.0%</button>";
   html += "<button onclick=\"sendMotorTarget(5)\">12.5%</button>";
   html += "<button onclick=\"sendMotorTarget(10)\">25.0%</button>";
-  html += "<div class='button-container'>";
   html += "</div>";
+  html += "<div class='button-container'>";
   html += "<button onclick=\"sendMotorTarget(15)\">37.7%</button>";
   html += "<button onclick=\"sendMotorTarget(20)\">50.0%</button>";
   html += "<button onclick=\"sendMotorTarget(25)\">62.5%</button>";
-  html += "<div class='button-container'>";
   html += "</div>";
+  html += "<div class='button-container'>";
   html += "<button onclick=\"sendMotorTarget(30)\">75.0%</button>";
   html += "<button onclick=\"sendMotorTarget(35)\">87.5%</button>";
   html += "<button onclick=\"sendMotorTarget(40)\">100.0%</button>";
