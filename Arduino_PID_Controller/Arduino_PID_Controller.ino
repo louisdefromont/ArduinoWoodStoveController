@@ -24,15 +24,15 @@ const int stepsPerRevolution = 2048;        // change this to fit the number of 
 const int rolePerMinute = 17;               // Adjustable range of 28BYJ-48 stepper is 0~17 rpm
 const int temperatureReadInterval = 1000;    // Number of ms between temperature reads
 const int targetMotorPositionInterval = 10000;
-const int upperStepsBound = 81920;       // Number of revolutions needed to fully close the valve
+const double upperStepsBound = 81920;       // Number of revolutions needed to fully close the valve
 const float autoTemperatureDeadzone = 5.0;
-const int stepsPerMotorTurn = 100;
+const double stepsPerMotorTurn = 100;
 
 SoftwareSerial softSerial(2, 3);
 Stepper stepper(stepsPerRevolution, 7, 9, 8, 10);
 
-int targetSteps = 40;
-int currentSteps = 40;
+double targetSteps = 0;
+double currentSteps = 0;
 unsigned long lastTemperatureRead = 0;
 unsigned long lastTargetMotorPosition = 0;
 float currentTemperature = 0.0;
@@ -77,12 +77,12 @@ void readESP8266() {
       automaticTemperatureControl = true;
       Serial.println("Set target temperature to: " + String(targetTemperature));
     } else if (serialInput.startsWith("M")) {
-      float target = serialInput.substring(1).toFloat();
+      double target = serialInput.substring(1).toDouble();
       if (target < 0) {
         setTargetSteps(currentSteps);
         manualMotorDirection = 0;
       } else {
-        setTargetSteps(target * float(upperStepsBound));
+        setTargetSteps((target / 100.0) * double(upperStepsBound));
       }
       automaticTemperatureControl = false;
     } else if (serialInput.startsWith("D")) {
@@ -97,15 +97,12 @@ void readESP8266() {
 void setTargetMotorPosition() {
   unsigned long currentTime = millis();
   if (currentTime - lastTargetMotorPosition >= targetMotorPositionInterval) {
-    Serial.println("Current Temperature: " + String(currentTemperature));
     lastTargetMotorPosition = currentTime;
     if (currentTemperature - autoTemperatureDeadzone > targetTemperature) {
       setTargetSteps(currentSteps - 1);
     } else if (currentTemperature + autoTemperatureDeadzone < targetTemperature) {
       setTargetSteps(currentSteps + 1);
     }
-    Serial.println("Current Revolutions: " + String(currentSteps));
-    Serial.println("Target Revolutions: " + String(targetSteps));
   }
 }
 
@@ -114,19 +111,17 @@ void turnMotor() {
     return;
   }
   int direction = (targetSteps > currentSteps) ? 1 : -1;
-  int stepsToTake = stepsPerMotorTurn * direction;
-  stepsToTake = min(stepsToTake, upperStepsBound);
-  stepsToTake = max(stepsToTake, 0);
+  double stepsToTake = min(abs(targetSteps - currentSteps), stepsPerMotorTurn);
+  stepsToTake = stepsToTake * direction;
   stepper.step(stepsToTake);
   currentSteps += stepsToTake;
-  // Serial.println(currentRevolutions);
 }
 
 void turnMotorManual(int direction) {
   stepper.step(direction * stepsPerMotorTurn);
 }
 
-void setTargetSteps(int ts) {
+void setTargetSteps(double ts) {
   if (ts > upperStepsBound) {
     targetSteps = upperStepsBound;
   } else if (ts < 0) {
