@@ -29,15 +29,15 @@ const int pidCalculateInterval = 2000;
 const double upperStepsBound = 81920;       // Number of revolutions needed to fully close the valve
 const float autoTemperatureDeadzone = 5.0;
 const double stepsPerMotorTurn = 100;
-const double KP = 750.0;
-const double KI = 1.0;
-const double KD = 10.0;
+const double KP = 100.0;
+const double KI = 0.0;
+const double KD = 1000.0;
 
 SoftwareSerial softSerial(2, 3);
 Stepper stepper(stepsPerRevolution, 7, 9, 8, 10);
 
-double targetSteps = 81920;
-double currentSteps = 81920;
+double targetSteps = 81920 * 1.0;
+double currentSteps = targetSteps;
 unsigned long lastTemperatureReadTime = 0;
 unsigned long lastTemperatureTransmitTime = 0;
 unsigned long previousPidTime = -1;
@@ -126,15 +126,15 @@ void readESP8266() {
 
 void calculatePid() {
   unsigned long currentPidTime = millis();
-  if (previousPidTime - currentPidTime < pidCalculateInterval) {
+  if (currentPidTime - previousPidTime < pidCalculateInterval) {
     return;
   }
   float temperatureError = targetTemperature - currentTemperature;
   if (previousPidTime > 0) {
-    unsigned long deltaTime = currentPidTime - previousPidTime;
+    unsigned long deltaTime = (currentPidTime - previousPidTime) * 1000;
     cumulativeIntegral += temperatureError * deltaTime;
     float derivative = (temperatureError - previousTemperatureError) / deltaTime;
-    float pid = KD * temperatureError + KI * cumulativeIntegral + KD * derivative;
+    float pid = KP * temperatureError + KI * cumulativeIntegral + KD * derivative;
     Serial.println("PID: " + String(pid));
     setTargetSteps(currentSteps + pid);
   }
