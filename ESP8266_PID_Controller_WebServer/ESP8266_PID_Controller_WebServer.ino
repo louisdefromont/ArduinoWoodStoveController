@@ -136,7 +136,7 @@ void handleMotorControl() {
   html += "xhttp.open('GET', '/api/temperature', true);";
   html += "xhttp.send();";
   html += "}";
-  html += "setInterval(refreshTemperature, 1000);"; // Refresh temperature every second
+  html += "setInterval(refreshTemperature, 2500);"; // Refresh temperature
   html += "function sendMotorDirection(value) {";
   html += "var xhttp = new XMLHttpRequest();";
   html += "xhttp.open('POST', '/api/motor_direction', true);";
