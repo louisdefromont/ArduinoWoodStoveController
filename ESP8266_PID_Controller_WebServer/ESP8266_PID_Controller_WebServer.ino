@@ -66,7 +66,6 @@ void handleRoot() {
   html += "<style>";
   html += "html, body { height: 100%; margin: 0; display: flex; align-items: center; justify-content: center; }";
   html += "#temperature-container { text-align: center; }";
-  html += "#calibrate-btn { margin-top: 20px; }";
   html += "</style>";
   html += "<script>function refreshTemperature() {";
   html += "var xhttp = new XMLHttpRequest();";
@@ -99,6 +98,9 @@ void handleMotorControl() {
   html += "</head><body>";
   html += "<div class='container'>";
   html += "<div class='button-container'>";
+  html += "<p><span id='temperature' style='font-size: 35vw;font-family: sans-seriff;'>" + String(temperature) + "</span></p>";
+  html += "</div>";
+  html += "<div class='button-container'>";
   html += "<button onclick=\"sendMotorDirection(-1)\">Left</button>";
   html += "<button onclick=\"sendMotorTarget(-1)\">Stop</button>";
   html += "<button onclick=\"sendMotorDirection(1)\">Right</button>";
@@ -124,6 +126,17 @@ void handleMotorControl() {
   html += "</div>";
   html += "</div>";
   html += "<script>";
+  html += "function refreshTemperature() {";
+  html += "var xhttp = new XMLHttpRequest();";
+  html += "xhttp.onreadystatechange = function() {";
+  html += "if (this.readyState == 4 && this.status == 200) {";
+  html += "document.getElementById('temperature').innerHTML = this.responseText;";
+  html += "}";
+  html += "};";
+  html += "xhttp.open('GET', '/api/temperature', true);";
+  html += "xhttp.send();";
+  html += "}";
+  html += "setInterval(refreshTemperature, 1000);"; // Refresh temperature every second
   html += "function sendMotorDirection(value) {";
   html += "var xhttp = new XMLHttpRequest();";
   html += "xhttp.open('POST', '/api/motor_direction', true);";
