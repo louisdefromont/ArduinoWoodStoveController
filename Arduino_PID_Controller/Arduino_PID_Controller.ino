@@ -22,7 +22,9 @@ const bool calibrateModeOn = false; // Set to true to get raw temperature readin
 
 const int stepsPerRevolution = 2048;        // change this to fit the number of steps per revolution
 const int rolePerMinute = 17;               // Adjustable range of 28BYJ-48 stepper is 0~17 rpm
-const int temperatureReadInterval = 1000;    // Number of ms between temperature reads
+const int temperatureReadInterval = 100;    // Number of ms between temperature reads
+const int temperatureAveragingWindowSize = 5;
+const int temperatureTransmitInterval = 1000;
 const int targetMotorPositionInterval = 10000;
 const double upperStepsBound = 81920;       // Number of revolutions needed to fully close the valve
 const float autoTemperatureDeadzone = 5.0;
@@ -33,12 +35,15 @@ Stepper stepper(stepsPerRevolution, 7, 9, 8, 10);
 
 double targetSteps = 0;
 double currentSteps = 0;
-unsigned long lastTemperatureRead = 0;
-unsigned long lastTargetMotorPosition = 0;
+unsigned long lastTemperatureReadTime = 0;
+unsigned long lastTemperatureTransmitTime = 0;
+unsigned long lastTargetMotorPositionTime = 0;
 float currentTemperature = 0.0;
 float targetTemperature = 240.0;
 bool automaticTemperatureControl = false;
 int manualMotorDirection = 0;
+int currentTemperatureReadIndex = 0;
+float temperatureReadings[temperatureAveragingWindowSize];
 
 void setup() {
   Serial.begin(9600);
@@ -47,7 +52,7 @@ void setup() {
 }
 
 void loop() {
-  readAndTransmitTemperature();
+  readTemperature();
   readESP8266();
   if (automaticTemperatureControl) {
     setTargetMotorPosition();
@@ -58,11 +63,30 @@ void loop() {
   }
 }
 
-void readAndTransmitTemperature() {
+void readTemperature() {
   unsigned long currentTime = millis();
-  if (currentTime - lastTemperatureRead >= temperatureReadInterval) {
-    lastTemperatureRead = currentTime;
+  if (currentTime - lastTemperatureReadTime >= temperatureReadInterval) {
+    lastTemperatureReadTime = currentTime;
     currentTemperature = readThermocouple();
+
+    temperatureReadings[currentTemperatureReadIndex] = readTemperature();
+    float sum = 0;
+    for (int i = 0; i < temperatureAveragingWindowSize; i++) {
+      sum += temperatureReadings[i];
+    }
+    currentTemperature = sum / temperatureAveragingWindowSize;
+
+    currentTemperatureReadIndex++;
+    if (currentTemperatureReadIndex > temperatureAveragingWindowSize) {
+      currentTemperatureReadIndex = 0;
+    }
+  }
+}
+
+void transmitTemperature() {
+  unsigned long currentTime = millis();
+  if (currentTime - lastTemperatureTransmitTime >= temperatureTransmitInterval) {
+    lastTemperatureTransmitTime = currentTime;
     softSerial.println(currentTemperature);
   }
 }
@@ -96,8 +120,8 @@ void readESP8266() {
 
 void setTargetMotorPosition() {
   unsigned long currentTime = millis();
-  if (currentTime - lastTargetMotorPosition >= targetMotorPositionInterval) {
-    lastTargetMotorPosition = currentTime;
+  if (currentTime - lastTargetMotorPositionTime >= targetMotorPositionInterval) {
+    lastTargetMotorPositionTime = currentTime;
     if (currentTemperature - autoTemperatureDeadzone > targetTemperature) {
       setTargetSteps(currentSteps - 1);
     } else if (currentTemperature + autoTemperatureDeadzone < targetTemperature) {
