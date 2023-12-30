@@ -14,7 +14,7 @@
 // Set calibrateModeOn to true while callibrating, then false to use calibrations
 const double calibrate0 = 5.00; // The measured temperature reading at 0 c
 const double calibrate100 = 100.00; // The measured temperature reading at 100 c
-const bool calibrateModeOn = true; // Set to true to get raw temperature readings in order to calibrate
+const bool calibrateModeOn = false; // Set to true to get raw temperature readings in order to calibrate
 
 #define MAX6675_CS   11
 #define MAX6675_SO   12
@@ -24,14 +24,15 @@ const int stepsPerRevolution = 2048;        // change this to fit the number of 
 const int rolePerMinute = 17;               // Adjustable range of 28BYJ-48 stepper is 0~17 rpm
 const int temperatureReadInterval = 1000;    // Number of ms between temperature reads
 const int targetMotorPositionInterval = 10000;
-const int upperRevolutionsBound = 40;       // Number of revolutions needed to fully close the valve
-const float autoTemperatureDeadzone = 1.0;
+const int upperStepsBound = 81920;       // Number of revolutions needed to fully close the valve
+const float autoTemperatureDeadzone = 5.0;
+const int stepsPerMotorTurn = 100;
 
 SoftwareSerial softSerial(2, 3);
 Stepper stepper(stepsPerRevolution, 7, 9, 8, 10);
 
-int targetRevolutions = 0;
-int currentRevolutions = 0;
+int targetSteps = 40;
+int currentSteps = 40;
 unsigned long lastTemperatureRead = 0;
 unsigned long lastTargetMotorPosition = 0;
 float currentTemperature = 0.0;
@@ -76,12 +77,12 @@ void readESP8266() {
       automaticTemperatureControl = true;
       Serial.println("Set target temperature to: " + String(targetTemperature));
     } else if (serialInput.startsWith("M")) {
-      int target = serialInput.substring(1).toInt();
+      float target = serialInput.substring(1).toFloat();
       if (target < 0) {
-        setTargetRevolutions(currentRevolutions);
+        setTargetSteps(currentSteps);
         manualMotorDirection = 0;
       } else {
-        setTargetRevolutions(target);
+        setTargetSteps(target * float(upperStepsBound));
       }
       automaticTemperatureControl = false;
     } else if (serialInput.startsWith("D")) {
@@ -99,36 +100,39 @@ void setTargetMotorPosition() {
     Serial.println("Current Temperature: " + String(currentTemperature));
     lastTargetMotorPosition = currentTime;
     if (currentTemperature - autoTemperatureDeadzone > targetTemperature) {
-      setTargetRevolutions(currentRevolutions - 1);
+      setTargetSteps(currentSteps - 1);
     } else if (currentTemperature + autoTemperatureDeadzone < targetTemperature) {
-      setTargetRevolutions(currentRevolutions + 1);
+      setTargetSteps(currentSteps + 1);
     }
-    Serial.println("Current Revolutions: " + String(currentRevolutions));
-    Serial.println("Target Revolutions: " + String(targetRevolutions));
+    Serial.println("Current Revolutions: " + String(currentSteps));
+    Serial.println("Target Revolutions: " + String(targetSteps));
   }
 }
 
 void turnMotor() {
-  if (targetRevolutions == currentRevolutions) {
+  if (targetSteps == currentSteps) {
     return;
   }
-  int direction = (targetRevolutions > currentRevolutions) ? 1 : -1;
-  stepper.step(direction * stepsPerRevolution);
-  currentRevolutions += direction;
+  int direction = (targetSteps > currentSteps) ? 1 : -1;
+  int stepsToTake = stepsPerMotorTurn * direction;
+  stepsToTake = min(stepsToTake, upperStepsBound);
+  stepsToTake = max(stepsToTake, 0);
+  stepper.step(stepsToTake);
+  currentSteps += stepsToTake;
   // Serial.println(currentRevolutions);
 }
 
 void turnMotorManual(int direction) {
-  stepper.step(direction * stepsPerRevolution);
+  stepper.step(direction * stepsPerMotorTurn);
 }
 
-void setTargetRevolutions(int tr) {
-  if (tr > upperRevolutionsBound) {
-    targetRevolutions = upperRevolutionsBound;
-  } else if (tr < 0) {
-    targetRevolutions = 0;
+void setTargetSteps(int ts) {
+  if (ts > upperStepsBound) {
+    targetSteps = upperStepsBound;
+  } else if (ts < 0) {
+    targetSteps = 0;
   } else {
-    targetRevolutions = tr;
+    targetSteps = ts;
   }
 }
 
