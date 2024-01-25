@@ -24,23 +24,26 @@ const int stepsPerRevolution = 2048;        // change this to fit the number of 
 const int rolePerMinute = 17;               // Adjustable range of 28BYJ-48 stepper is 0~17 rpm
 const int temperatureReadInterval = 200;    // Number of ms between temperature reads
 const int temperatureAveragingWindowSize = 10;
-const int temperatureTransmitInterval = 1000;
-const int pidCalculateInterval = 2000;
-const double upperStepsBound = 81920;       // Number of revolutions needed to fully close the valve
-const float autoTemperatureDeadzone = 5.0;
+const int temperatureTransmitInterval = 2000;
+const double pidCalculateInterval = 60000;
+const double upperStepsBound = 81920;       // Number of steps needed to fully close the valve
+const float autoTemperatureDeadzone = 20.0;
 const double stepsPerMotorTurn = 100;
-const double KP = 100.0;
+const double minAir = 20;
+const double moveResolution = 10;
+const double KP = 1.0;
 const double KI = 0.0;
-const double KD = 1000.0;
+//const double KD = 20.0;
+const double KD = 40.0;
 
 SoftwareSerial softSerial(2, 3);
 Stepper stepper(stepsPerRevolution, 7, 9, 8, 10);
 
-double targetSteps = 81920 * 1.0;
+double targetSteps = 81920 * 0.2;
 double currentSteps = targetSteps;
 unsigned long lastTemperatureReadTime = 0;
 unsigned long lastTemperatureTransmitTime = 0;
-unsigned long previousPidTime = -1;
+unsigned long previousPidTime = 0;
 float previousTemperatureError = 0.0;
 float cumulativeIntegral = 0.0;
 float currentTemperature = 0.0;
@@ -49,6 +52,7 @@ bool automaticTemperatureControl = false;
 int manualMotorDirection = 0;
 int currentTemperatureReadIndex = 0;
 double temperatureReadings[temperatureAveragingWindowSize];
+
 
 void setup() {
   Serial.begin(9600);
@@ -73,9 +77,9 @@ void readTemperature() {
   unsigned long currentTime = millis();
   if (currentTime - lastTemperatureReadTime >= temperatureReadInterval) {
     lastTemperatureReadTime = currentTime;
-
-    temperatureReadings[currentTemperatureReadIndex] = readThermocouple();
+    
     double sum = 0;
+    temperatureReadings[currentTemperatureReadIndex] = readThermocouple();
     for (int i = 0; i < temperatureAveragingWindowSize; i++) {
       sum += temperatureReadings[i];
     }
@@ -90,10 +94,11 @@ void readTemperature() {
 
 void transmitTemperature() {
   unsigned long currentTime = millis();
+  double airIntake = 100*currentSteps/upperStepsBound;
   if (currentTime - lastTemperatureTransmitTime >= temperatureTransmitInterval) {
     lastTemperatureTransmitTime = currentTime;
-    softSerial.println(currentTemperature);
-    
+    softSerial.println(String(currentTemperature) + ", " + String(airIntake));
+//    Serial.println(String(currentTemperature) + ", " + String(airIntake));
   }
 }
 
@@ -126,21 +131,65 @@ void readESP8266() {
 
 void calculatePid() {
   unsigned long currentPidTime = millis();
+  double newSteps = currentSteps;
+//  Serial.println("previousPidTime: " + String(previousPidTime));
+//  Serial.println("currentPidTime: " + String(currentPidTime));
   if (currentPidTime - previousPidTime < pidCalculateInterval) {
     return;
   }
+  Serial.println("1. Current-Previous=Delta PidTime: " + String(currentPidTime) + " - " + String(previousPidTime) + " = " + String(currentPidTime - previousPidTime));
+  Serial.println("2. Target-Current=Delta Temp: " + String(targetTemperature) + " - " + String(currentTemperature) + " = " + String(targetTemperature - currentTemperature));
+  
   float temperatureError = targetTemperature - currentTemperature;
   if (previousPidTime > 0) {
-    unsigned long deltaTime = (currentPidTime - previousPidTime) * 1000;
+    unsigned long deltaTime = (currentPidTime - previousPidTime) / 1000;
     cumulativeIntegral += temperatureError * deltaTime;
     float derivative = (temperatureError - previousTemperatureError) / deltaTime;
     float pid = KP * temperatureError + KI * cumulativeIntegral + KD * derivative;
-    Serial.println("PID: " + String(pid));
-    setTargetSteps(currentSteps + pid);
+    Serial.println("3. tempError-prevTempError" + String(temperatureError) + " + " + String(previousTemperatureError) + " = " + String(derivative));
+    Serial.println("4. PID: " + String(KP*temperatureError) + " + " + String(KD*derivative) + " = " + String(pid));
+    newSteps = currentSteps + (upperStepsBound*pid/100);
+    if (newSteps>upperStepsBound) {
+      newSteps=upperStepsBound;
+      } else if (newSteps<minAir*upperStepsBound/100){
+        newSteps=minAir*upperStepsBound/100;
+        } 
+    if (abs(temperatureError)>autoTemperatureDeadzone/2) {
+      setTargetSteps(newSteps);
+      Serial.println("5. TargetPosition: " + String(100*newSteps/upperStepsBound));
+      Serial.println("");
+    }
   }
   previousPidTime = currentPidTime;
   previousTemperatureError =  temperatureError;
 }
+
+/*
+void calculatePid() {
+  unsigned long currentPidTime = millis();
+  double newSteps = currentSteps;
+  if (currentPidTime - previousPidTime < pidCalculateInterval) {return;}
+  Serial.println("1. Current-Previous=Delta PidTime: " + String(currentPidTime) + " - " + String(previousPidTime) + " = " + String(currentPidTime - previousPidTime));
+  Serial.println("2. Target-Current=Delta Temp: " + String(targetTemperature) + " - " + String(currentTemperature) + " = " + String(targetTemperature - currentTemperature));
+  
+  float temperatureError = targetTemperature - currentTemperature;
+  if (currentTemperature>(targetTemperature+(autoTemperatureDeadzone/2))) {
+    newSteps = currentSteps - (upperStepsBound*moveResolution/100);
+  } else if (currentTemperature<(targetTemperature-(autoTemperatureDeadzone/2))) {
+    newSteps = currentSteps + (upperStepsBound*moveResolution/100);
+  }
+  if (newSteps>upperStepsBound) {
+    newSteps=upperStepsBound;
+    } else if (newSteps<minAir*upperStepsBound/100){
+      newSteps=minAir*upperStepsBound/100;
+      } 
+  setTargetSteps(newSteps);
+  Serial.println("5. TargetPosition: " + String(100*newSteps/upperStepsBound));
+  Serial.println("");
+  previousPidTime = currentPidTime;
+  previousTemperatureError =  temperatureError;
+}
+*/
 
 void turnMotor() {
   if (targetSteps == currentSteps) {

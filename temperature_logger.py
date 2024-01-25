@@ -16,16 +16,17 @@ def get_temperature():
 def main():
     if not os.path.exists("temperature_log.csv"):
         with open("temperature_log.csv", "w") as f:
-            f.write("Date Time,Temperature\n")
+            f.write("Date Time,Temperature,Air\n")
     while True:
         temperature = get_temperature()
         dateTime = time.strftime("%Y-%m-%d %H:%M:%S")
         if temperature != "Error":
             with open("temperature_log.csv", "a") as f:
-                f.write(dateTime + "," + temperature + "\n")
+#                f.write(dateTime + "," + temperature + "\n")
+                f.write(dateTime + "," + temperature)
         else:
             print("Error getting temperature")
-        time.sleep(4)
+        time.sleep(15)
 
 if __name__ == "__main__":
     main()

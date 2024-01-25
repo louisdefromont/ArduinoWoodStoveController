@@ -9,6 +9,7 @@ ESP8266WiFiMulti wifiMulti;     // Create an instance of the ESP8266WiFiMulti cl
 ESP8266WebServer server(80);    // Create a webserver object that listens for HTTP request on port 80
 
 float temperature = 0;
+String measurements = "000.00, 000.00";
 
 void handleRoot();              // function prototypes for HTTP handlers
 void handleLED();
@@ -57,7 +58,8 @@ void loop(void) {
 
   if (Serial.available() > 0) {
     String read = Serial.readString();
-    temperature = read.toFloat();
+    measurements = read;
+//    temperature = read.toFloat();
   }
 }
 
@@ -80,7 +82,8 @@ void handleRoot() {
   html += "setInterval(refreshTemperature, 1000);"; // Refresh temperature every second
   html += "</script></head><body>";
   html += "<div id='temperature-container'>";
-  html += "<p><span id='temperature' style='font-size: 35vw;font-family: sans-seriff;'>" + String(temperature) + "</span></p>";
+  //html += "<p><span id='temperature' style='font-size: 35vw;font-family: sans-seriff;'>" + String(temperature) + "</span></p>";
+  html += "<p><span id='temperature' style='font-size: 35vw;font-family: sans-seriff;'>" + measurements + "</span></p>";
   html += "</div>";
   html += "</body></html>";
 
@@ -98,7 +101,8 @@ void handleMotorControl() {
   html += "</head><body>";
   html += "<div class='container'>";
   html += "<div class='button-container'>";
-  html += "<p><span id='temperature' style='font-size: 10vw;font-family: sans-seriff;'>" + String(temperature) + "</span></p>";
+ // html += "<p><span id='temperature' style='font-size: 10vw;font-family: sans-seriff;'>" + String(temperature) + "</span></p>";
+  html += "<p><span id='temperature' style='font-size: 10vw;font-family: sans-seriff;'>" + measurements + "</span></p>";
   html += "</div>";
   html += "<div class='button-container'>";
   html += "<button onclick=\"sendMotorDirection(-1)\">Left</button>";
@@ -167,7 +171,8 @@ void handleLED() {                          // If a POST request is made to URI 
 }
 
 void getTemperature() {
-  server.send(200, "text/plain", String(temperature));
+//  server.send(200, "text/plain", String(temperature));
+  server.send(200, "text/plain", measurements);
 }
 
 void postMotorDirection() {
